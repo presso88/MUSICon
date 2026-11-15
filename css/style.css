@@ -11,6 +11,7 @@
   --accent-1: #c0262d;
   --accent-2: #80181d;
   --accent-glow: rgba(192, 38, 45, .42);
+  color-scheme: dark;
 }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -1051,4 +1052,27 @@ body::after {
 .back-out {
   animation: backOut .28s ease forwards !important;
   pointer-events: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px; 
+  height: 6px; 
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a35; 
+  border-radius: 10px; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f4e; 
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a35 transparent;
 }
