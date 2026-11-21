@@ -736,32 +736,79 @@ function buildArtistMap() {
   }
 }
 
-function calculateArtistStats(entry) {
-  const releases = entry.releases;
-  let totalPoints = 0;
-  let totalTracks = 0;
-  for (const r of releases) {
-    const tracks = Math.max(1, Number(r.track_count) || (
-      /сингл|single/i.test(r.type) ? 1 :
-      /ep|мини/i.test(r.type) ? 4 :
-      /альбом|album|lp/i.test(r.type) ? 10 : 1
-    ));
-    totalPoints += (r.avg1000 * tracks);
-    totalTracks += tracks;
-  }
+  function calculateArtistStats(entry) {
+    const artistName = entry.name;
+    let allArtistTracks = []; 
+    let bestScore = 0;
+    
+    for (const r of entry.releases) {
+      const mainArtists = splitArtists(r.artist);
+      const isMain = mainArtists.includes(artistName);
+
+      // Если артист основной — учитываем общий балл релиза
+      if (isMain) {
+        bestScore = Math.max(bestScore, r.avg1000 || 0);
+      }
+
+      const tracks = Array.isArray(r.tracks) ? r.tracks : [];
+      for (const t of tracks) {
+        if (!t.avg1000 || t.avg1000 === 0) continue; 
+
+        const feats = splitArtists(t.feat || ""); 
+        const isFeat = feats.includes(artistName);
+
+        if (isMain || isFeat) {
+          const tKey = t.track_key || generateTrackKey(r.artist, t.song_name, t.feat);
+          
+          allArtistTracks.push({
+            key: tKey,
+            score: t.avg1000,
+            isMain: isMain,
+            weight: isMain ? 1.0 : 0.6,
+            releaseDate: r.date
+          });
+
+          if (!isMain && isFeat) {
+            bestScore = Math.max(bestScore, t.avg1000 || 0);
+          }
+        }
+      }
+    }
+
+    const uniqueTracksMap = new Map();
+    for (const track of allArtistTracks) {
+      if (!uniqueTracksMap.has(track.key)) {
+        uniqueTracksMap.set(track.key, track);
+      } else {
+        if (track.score > uniqueTracksMap.get(track.key).score) {
+          uniqueTracksMap.set(track.key, track);
+        }
+      }
+    }
+
+    const uniqueTracks = Array.from(uniqueTracksMap.values());
+
+    // --- ВОТ ЗДЕСЬ ОБЪЯВЛЯЕТСЯ ПЕРЕМЕННАЯ ---
+    let totalPoints = 0;
+    let weightedTrackCount = 0; 
+    // -----------------------------------------
+    
+    for (const track of uniqueTracks) {
+      totalPoints += (track.score * track.weight);
+      weightedTrackCount += track.weight;
+    }
+
     const rawAvg = weightedTrackCount > 0 ? (totalPoints / weightedTrackCount) : 0;
     
-    // Формула доверия (onScore) с плавным переходом
+    // Плавная формула доверия (onScore)
     const GLOBAL_AVERAGE = 600;
     let weightedAvg = null;
 
     if (weightedTrackCount >= 5) {
       if (weightedTrackCount < 20) {
-        // Плавное затухание: от 5 до 19 треков "виртуальные" треки уменьшаются с 15 до 1
         const virtualTracks = 20 - weightedTrackCount;
         weightedAvg = (totalPoints + (GLOBAL_AVERAGE * virtualTracks)) / 20;
       } else {
-        // 20 и более треков: чистая средняя оценка
         weightedAvg = totalPoints / weightedTrackCount;
       }
     }
@@ -771,10 +818,10 @@ function calculateArtistStats(entry) {
       totalTracks: uniqueTracks.length, 
       weightedTracks: weightedTrackCount, 
       rawAvg,
-      weightedAvg, // Может быть null, если меньше 5 треков
+      weightedAvg, 
       bestScore 
     };
-}
+  }
 
 /* ============================================================
    КАТАЛОГ: ФИЛЬТРЫ И ХРАНИЛИЩЕ
