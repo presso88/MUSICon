@@ -736,92 +736,26 @@ function buildArtistMap() {
   }
 }
 
-  function calculateArtistStats(entry) {
-    const artistName = entry.name;
-    let allArtistTracks = []; 
-    let bestScore = 0;
-    
-    for (const r of entry.releases) {
-      const mainArtists = splitArtists(r.artist);
-      const isMain = mainArtists.includes(artistName);
-
-      // Если артист основной — учитываем общий балл релиза
-      if (isMain) {
-        bestScore = Math.max(bestScore, r.avg1000 || 0);
-      }
-
-      const tracks = Array.isArray(r.tracks) ? r.tracks : [];
-      for (const t of tracks) {
-        if (!t.avg1000 || t.avg1000 === 0) continue; 
-
-        const feats = splitArtists(t.feat || ""); 
-        const isFeat = feats.includes(artistName);
-
-        if (isMain || isFeat) {
-          const tKey = t.track_key || generateTrackKey(r.artist, t.song_name, t.feat);
-          
-          allArtistTracks.push({
-            key: tKey,
-            score: t.avg1000,
-            isMain: isMain,
-            weight: isMain ? 1.0 : 0.6,
-            releaseDate: r.date
-          });
-
-          if (!isMain && isFeat) {
-            bestScore = Math.max(bestScore, t.avg1000 || 0);
-          }
-        }
-      }
-    }
-
-    const uniqueTracksMap = new Map();
-    for (const track of allArtistTracks) {
-      if (!uniqueTracksMap.has(track.key)) {
-        uniqueTracksMap.set(track.key, track);
-      } else {
-        if (track.score > uniqueTracksMap.get(track.key).score) {
-          uniqueTracksMap.set(track.key, track);
-        }
-      }
-    }
-
-    const uniqueTracks = Array.from(uniqueTracksMap.values());
-
-    // --- ВОТ ЗДЕСЬ ОБЪЯВЛЯЕТСЯ ПЕРЕМЕННАЯ ---
-    let totalPoints = 0;
-    let weightedTrackCount = 0; 
-    // -----------------------------------------
-    
-    for (const track of uniqueTracks) {
-      totalPoints += (track.score * track.weight);
-      weightedTrackCount += track.weight;
-    }
-
-    const rawAvg = weightedTrackCount > 0 ? (totalPoints / weightedTrackCount) : 0;
-    
-    // Плавная формула доверия (onScore)
-    const GLOBAL_AVERAGE = 600;
-    let weightedAvg = null;
-
-    if (weightedTrackCount >= 5) {
-      if (weightedTrackCount < 20) {
-        const virtualTracks = 20 - weightedTrackCount;
-        weightedAvg = (totalPoints + (GLOBAL_AVERAGE * virtualTracks)) / 20;
-      } else {
-        weightedAvg = totalPoints / weightedTrackCount;
-      }
-    }
-
-    return {
-      count: entry.releases.length,
-      totalTracks: uniqueTracks.length, 
-      weightedTracks: weightedTrackCount, 
-      rawAvg,
-      weightedAvg, 
-      bestScore 
-    };
+function calculateArtistStats(entry) {
+  const releases = entry.releases;
+  let totalPoints = 0;
+  let totalTracks = 0;
+  for (const r of releases) {
+    const tracks = Math.max(1, Number(r.track_count) || (
+      /сингл|single/i.test(r.type) ? 1 :
+      /ep|мини/i.test(r.type) ? 4 :
+      /альбом|album|lp/i.test(r.type) ? 10 : 1
+    ));
+    totalPoints += (r.avg1000 * tracks);
+    totalTracks += tracks;
   }
+  const rawAvg = totalTracks > 0 ? (totalPoints / totalTracks) : 0;
+  const GLOBAL_AVERAGE = 700;
+  const MIN_TRACKS = 20;
+  const weightedAvg = (totalPoints + (GLOBAL_AVERAGE * MIN_TRACKS)) / (totalTracks + MIN_TRACKS);
+  const bestScore = releases.length ? Math.max(...releases.map(r => r.avg1000)) : 0;
+  return { count: releases.length, totalTracks, rawAvg, weightedAvg, bestScore };
+}
 
 /* ============================================================
    КАТАЛОГ: ФИЛЬТРЫ И ХРАНИЛИЩЕ
@@ -1215,8 +1149,8 @@ function renderArtistContent(name) {
   const spotifyBtn = spotifyArtistLink ? `<a class="release-link-btn" href="${escapeHtml(spotifyArtistLink)}" target="_blank" rel="noopener noreferrer"><span class="release-link-text">Артист на Spotify</span><span class="release-link-arrow">↗</span></a>` : "";
   const artistLinksHTML = (yandexBtn || spotifyBtn) ? `<div class="artist-links">${yandexBtn}${spotifyBtn}</div>` : "";
 
-  const onScoreVal = stats.weightedAvg !== null ? Math.round(stats.weightedAvg) : null;
-  const onScoreCol = onScoreVal !== null ? getScoreColor(onScoreVal) : "var(--muted)";
+  const onScoreVal = Math.round(stats.weightedAvg);
+  const onScoreCol = getScoreColor(onScoreVal);
   const bestScoreVal = Math.round(stats.bestScore);
   const bestScoreCol = getScoreColor(bestScoreVal);
 
@@ -1250,7 +1184,7 @@ function renderArtistContent(name) {
         <span class="stat-chip rank-chip" data-rank-name="${escapeHtml(badge.name)}">${badge.emoji} ${badge.name}</span>
         <span class="stat-chip"><strong>${stats.count}</strong> ${plural(stats.count, "релиз", "релиза", "релизов")}</span>
         <span class="stat-chip"><strong>${stats.totalTracks}</strong> ${plural(stats.totalTracks, "трек", "трека", "треков")}</span>
-        <span class="stat-chip oscore-chip">балл onScore: <strong style="color:${onScoreCol};">${onScoreVal !== null ? onScoreVal : "—"}</strong><span class="info-icon">?</span></span>
+        <span class="stat-chip oscore-chip">балл onScore: <strong style="color:${onScoreCol};">${onScoreVal}</strong><span class="info-icon">?</span></span>
         <span class="stat-chip">Лучший релиз: <strong style="color:${bestScoreCol};">${bestScoreVal}</strong></span>
       </div>
       ${artistLinksHTML}
