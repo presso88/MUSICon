@@ -491,10 +491,10 @@ const initial = (name) => (name || "?").trim().charAt(0).toUpperCase();
 
 function getTrackBadge(trackCount) {
   const n = Number(trackCount) || 0;
-  if (n >= 50) return { emoji: "⭐", name: "Звезда" };
-  if (n >= 30) return { emoji: "🌕", name: "Полнолуние" };
-  if (n >= 20) return { emoji: "🌔", name: "Растущая луна" };
-  if (n >= 10) return { emoji: "🌓", name: "Первая четверть" };
+  if (n >= 60) return { emoji: "⭐", name: "Звезда" };
+  if (n >= 40) return { emoji: "🌕", name: "Полнолуние" };
+  if (n >= 25) return { emoji: "🌔", name: "Растущая луна" };
+  if (n >= 15) return { emoji: "🌓", name: "Первая четверть" };
   if (n >= 5)  return { emoji: "🌒", name: "Молодая луна" };
   return { emoji: "🌑", name: "Новолуние" };
 }
@@ -751,7 +751,7 @@ function calculateArtistStats(entry) {
   }
   const rawAvg = totalTracks > 0 ? (totalPoints / totalTracks) : 0;
   const GLOBAL_AVERAGE = 700;
-  const MIN_TRACKS = 10;
+  const MIN_TRACKS = 20;
   const weightedAvg = (totalPoints + (GLOBAL_AVERAGE * MIN_TRACKS)) / (totalTracks + MIN_TRACKS);
   const bestScore = releases.length ? Math.max(...releases.map(r => r.avg1000)) : 0;
   return { count: releases.length, totalTracks, rawAvg, weightedAvg, bestScore };
