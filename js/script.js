@@ -736,26 +736,39 @@ function buildArtistMap() {
   }
 }
 
-function calculateArtistStats(entry) {
-  const releases = entry.releases;
-  let totalPoints = 0;
-  let totalTracks = 0;
-  for (const r of releases) {
-    const tracks = Math.max(1, Number(r.track_count) || (
-      /сингл|single/i.test(r.type) ? 1 :
-      /ep|мини/i.test(r.type) ? 4 :
-      /альбом|album|lp/i.test(r.type) ? 10 : 1
-    ));
-    totalPoints += (r.avg1000 * tracks);
-    totalTracks += tracks;
+  function calculateArtistStats(entry) {
+    const releases = entry.releases;
+    let totalPoints = 0;
+    let totalTracks = 0;
+    
+    for (const r of releases) {
+      const tracks = Math.max(1, Number(r.track_count) || (
+        /сингл|single/i.test(r.type) ? 1 :
+        /ep|мини/i.test(r.type) ? 4 :
+        /альбом|album|lp/i.test(r.type) ? 10 : 1
+      ));
+      totalPoints += (r.avg1000 * tracks);
+      totalTracks += tracks;
+    }
+    
+    const rawAvg = totalTracks > 0 ? (totalPoints / totalTracks) : 0;
+    const bestScore = releases.length ? Math.max(...releases.map(r => r.avg1000)) : 0;
+    
+    // Новая плавная математика
+    const GLOBAL_AVERAGE = 600;
+    let weightedAvg = null;
+
+    if (totalTracks >= 5) {
+      if (totalTracks < 20) {
+        const virtualTracks = 20 - totalTracks;
+        weightedAvg = (totalPoints + (GLOBAL_AVERAGE * virtualTracks)) / 20;
+      } else {
+        weightedAvg = totalPoints / totalTracks;
+      }
+    }
+
+    return { count: releases.length, totalTracks, rawAvg, weightedAvg, bestScore };
   }
-  const rawAvg = totalTracks > 0 ? (totalPoints / totalTracks) : 0;
-  const GLOBAL_AVERAGE = 700;
-  const MIN_TRACKS = 20;
-  const weightedAvg = (totalPoints + (GLOBAL_AVERAGE * MIN_TRACKS)) / (totalTracks + MIN_TRACKS);
-  const bestScore = releases.length ? Math.max(...releases.map(r => r.avg1000)) : 0;
-  return { count: releases.length, totalTracks, rawAvg, weightedAvg, bestScore };
-}
 
 /* ============================================================
    КАТАЛОГ: ФИЛЬТРЫ И ХРАНИЛИЩЕ
@@ -1091,10 +1104,16 @@ function renderArtists() {
   const card = $("#artistsCard");
   if (!artistMap.size) { card.innerHTML = `<div class="status">Нет данных для топа</div>`; return; }
 
-  const artists = [...artistMap.values()].map(a => {
-    const stats = calculateArtistStats(a);
-    return { name: a.name, avg: stats.weightedAvg, count: stats.count, totalTracks: stats.totalTracks, imageUrl: a.imageUrl };
-  }).sort((a, b) => b.avg - a.avg).slice(0, 5);
+    const artists = [...artistMap.values()].map(a => {
+      const stats = calculateArtistStats(a);
+      return { 
+        name: a.name, 
+        avg: stats.weightedAvg !== null ? stats.weightedAvg : -1, // Если null, ставим -1 (улетит в конец)
+        count: stats.count, 
+        totalTracks: stats.totalTracks, 
+        imageUrl: a.imageUrl 
+      };
+    }).sort((a, b) => b.avg - a.avg).slice(0, 5);
 
   card.innerHTML = artists.map((a, i) => {
     const bg = artistGradient(a.name);
@@ -1149,8 +1168,8 @@ function renderArtistContent(name) {
   const spotifyBtn = spotifyArtistLink ? `<a class="release-link-btn" href="${escapeHtml(spotifyArtistLink)}" target="_blank" rel="noopener noreferrer"><span class="release-link-text">Артист на Spotify</span><span class="release-link-arrow">↗</span></a>` : "";
   const artistLinksHTML = (yandexBtn || spotifyBtn) ? `<div class="artist-links">${yandexBtn}${spotifyBtn}</div>` : "";
 
-  const onScoreVal = Math.round(stats.weightedAvg);
-  const onScoreCol = getScoreColor(onScoreVal);
+  const onScoreVal = stats.weightedAvg !== null ? Math.round(stats.weightedAvg) : null;
+  const onScoreCol = onScoreVal !== null ? getScoreColor(onScoreVal) : "var(--muted)";
   const bestScoreVal = Math.round(stats.bestScore);
   const bestScoreCol = getScoreColor(bestScoreVal);
 
@@ -1184,7 +1203,7 @@ function renderArtistContent(name) {
         <span class="stat-chip rank-chip" data-rank-name="${escapeHtml(badge.name)}">${badge.emoji} ${badge.name}</span>
         <span class="stat-chip"><strong>${stats.count}</strong> ${plural(stats.count, "релиз", "релиза", "релизов")}</span>
         <span class="stat-chip"><strong>${stats.totalTracks}</strong> ${plural(stats.totalTracks, "трек", "трека", "треков")}</span>
-        <span class="stat-chip oscore-chip">балл onScore: <strong style="color:${onScoreCol};">${onScoreVal}</strong><span class="info-icon">?</span></span>
+        <span class="stat-chip oscore-chip">балл onScore: <strong style="color:${onScoreCol};">${onScoreVal !== null ? onScoreVal : "—"}</strong><span class="info-icon">?</span></span>
         <span class="stat-chip">Лучший релиз: <strong style="color:${bestScoreCol};">${bestScoreVal}</strong></span>
       </div>
       ${artistLinksHTML}
