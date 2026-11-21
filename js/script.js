@@ -1203,7 +1203,7 @@ function renderArtistContent(name) {
         <span class="stat-chip rank-chip" data-rank-name="${escapeHtml(badge.name)}">${badge.emoji} ${badge.name}</span>
         <span class="stat-chip"><strong>${stats.count}</strong> ${plural(stats.count, "релиз", "релиза", "релизов")}</span>
         <span class="stat-chip"><strong>${stats.totalTracks}</strong> ${plural(stats.totalTracks, "трек", "трека", "треков")}</span>
-        <span class="stat-chip oscore-chip">балл onScore: <strong style="color:${onScoreCol};">${onScoreVal !== null ? onScoreVal : "—"}</strong><span class="info-icon">?</span></span>
+        <span class="stat-chip oscore-chip">балл onScore: <strong style="color:${onScoreCol};">${onScoreVal !== null ? onScoreVal : "недостаточно данных"}</strong><span class="info-icon">?</span></span>
         <span class="stat-chip">Лучший релиз: <strong style="color:${bestScoreCol};">${bestScoreVal}</strong></span>
       </div>
       ${artistLinksHTML}
