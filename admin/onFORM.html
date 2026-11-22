@@ -719,7 +719,7 @@
       to { transform: rotate(360deg); }
     }
   </style>
-<script src="/_aistudio-iframe.js?v=1f94f900"></script></head>
+</head>
 <body>
 
   <div class="container">
@@ -733,7 +733,7 @@
           <h1>
             onFORM
             <span class="brand-badge">ADMIN</span>
-            <span class="brand-version">v0.3.1</span>
+            <span class="brand-version">v0.3.2</span>
           </h1>
           <p>Добавление релизов и треков в базу данных MUSICon</p>
         </div>
@@ -1564,8 +1564,8 @@ function attachFeatAutocomplete(inputEl, dropdownEl, trackObj) {
             <div class="autocomplete-dropdown feat-dropdown"></div>
           </div>
           <input type="text" name="duration" placeholder="03:45" value="${escapeHtml(track.duration || '')}">
-          <input type="number" step="0.01" name="jury1" placeholder="Скип" value="${track.jury1 !== '' ? track.jury1 : ''}">
-          <input type="number" step="0.01" name="jury2" placeholder="Скип" value="${track.jury2 !== '' ? track.jury2 : ''}">
+          <input type="number" step="0.01" name="jury1" placeholder="Оценка 1" value="${track.jury1 !== '' ? track.jury1 : ''}">
+          <input type="number" step="0.01" name="jury2" placeholder="Оценка 2" value="${track.jury2 !== '' ? track.jury2 : ''}">
           <input type="number" name="scale" placeholder="Шкала" value="${track.scale || scaleInput.value || 100}">
           <div class="track-score-badge" id="badgeTrack_${index}">${badgeHtml}</div>
           <button type="button" class="btn-del-track" title="Удалить трек">
