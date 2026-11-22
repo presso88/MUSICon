@@ -473,11 +473,12 @@
       padding: 12px 16px;
       margin-bottom: 10px;
       display: grid;
-      grid-template-columns: 40px 3fr 1fr 1fr 1fr 1fr 100px 36px;
-      gap: 10px;
+      grid-template-columns: 36px 2.2fr 1.6fr 85px 75px 75px 70px 95px 34px;
+      gap: 8px;
       align-items: center;
       transition: border-color 0.2s;
     }
+
 
     .track-row:hover {
       border-color: #363646;
@@ -537,6 +538,9 @@
         color: var(--accent);
       }
       .track-row input[name="song_name"] {
+        grid-column: span 2;
+      }
+      .track-row .feat-wrap {
         grid-column: span 2;
       }
     }
@@ -729,7 +733,7 @@
           <h1>
             onFORM
             <span class="brand-badge">ADMIN</span>
-            <span class="brand-version">v0.2.4</span>
+            <span class="brand-version">v0.3.0</span>
           </h1>
           <p>Добавление релизов и треков в базу данных MUSICon</p>
         </div>
@@ -1243,12 +1247,28 @@
       }
     });
 
-    function getParsedArtistNames() {
+    // Основные артисты релиза
+    function getMainArtistNames() {
       return artistInput.value
         .split(";")
         .map(a => a.trim())
         .filter(Boolean);
     }
+
+    // Все артисты: основные + фичеры из всех треков (без дублей)
+    function getParsedArtistNames() {
+      const set = new Set(getMainArtistNames());
+      state.tracks.forEach(t => {
+        if (t.feat) {
+          t.feat.split(";").forEach(f => {
+            const cleanF = f.trim();
+            if (cleanF) set.add(cleanF);
+          });
+        }
+      });
+      return [...set];
+    }
+
 
     function onArtistSearch() {
       const fullVal = artistInput.value;
@@ -1443,6 +1463,7 @@
           state.tracks.push({
             track_number: i + 1,
             song_name: "",
+            feat: "",
             duration: "",
             jury1: "",
             jury2: "",
@@ -1454,6 +1475,56 @@
       }
 
       renderTracksList();
+      renderDynamicArtistPhotoFields();
+    }
+
+    function attachFeatAutocomplete(inputEl, dropdownEl, trackObj) {
+      const showFeatDropdown = () => {
+        const fullVal = inputEl.value;
+        const parts = fullVal.split(";");
+        const currentSegment = (parts[parts.length - 1] || "").trim();
+        const cleanVal = currentSegment.toLowerCase();
+
+        dropdownEl.innerHTML = "";
+        const names = Object.keys(state.existingArtists);
+        const matches = names.filter(n => !cleanVal || n.toLowerCase().includes(cleanVal));
+
+        if (matches.length === 0) {
+          dropdownEl.classList.remove("show");
+          return;
+        }
+
+        matches.slice(0, 10).forEach(name => {
+          const item = document.createElement("div");
+          item.className = "autocomplete-item";
+          item.textContent = name;
+          item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            if (parts.length > 1) {
+              parts[parts.length - 1] = " " + name;
+              inputEl.value = parts.join(";");
+            } else {
+              inputEl.value = name;
+            }
+            trackObj.feat = inputEl.value;
+            dropdownEl.classList.remove("show");
+            renderDynamicArtistPhotoFields();
+          });
+          dropdownEl.appendChild(item);
+        });
+
+        dropdownEl.classList.add("show");
+      };
+
+      inputEl.addEventListener("input", () => {
+        trackObj.feat = inputEl.value;
+        showFeatDropdown();
+        renderDynamicArtistPhotoFields();
+      });
+      inputEl.addEventListener("focus", showFeatDropdown);
+      inputEl.addEventListener("blur", () => {
+        setTimeout(() => dropdownEl.classList.remove("show"), 150);
+      });
     }
 
     function renderTracksList() {
@@ -1469,14 +1540,22 @@
         const sc = parseFloat(track.scale) || 10;
         let badgeHtml = "—";
         if (!isNaN(j1) && !isNaN(j2)) {
-          const avg = (j1 + j2) / 2;
-          const avg1000 = sc > 0 ? (avg / sc) * 1000 : avg;
-          badgeHtml = `${avg.toFixed(1)} / ${avg1000.toFixed(0)}`;
+          if (j1 === 0 && j2 === 0) {
+            badgeHtml = "Скип (0)";
+          } else {
+            const avg = (j1 + j2) / 2;
+            const avg1000 = sc > 0 ? (avg / sc) * 1000 : avg;
+            badgeHtml = `${avg.toFixed(1)} / ${avg1000.toFixed(0)}`;
+          }
         }
 
         row.innerHTML = `
           <div class="track-num">#${index + 1}</div>
           <input type="text" name="song_name" placeholder="Название трека" value="${escapeHtml(track.song_name || '')}">
+          <div class="autocomplete-wrap feat-wrap">
+            <input type="text" name="feat" placeholder="feat. (через ;)" value="${escapeHtml(track.feat || '')}">
+            <div class="autocomplete-dropdown feat-dropdown"></div>
+          </div>
           <input type="text" name="duration" placeholder="03:45" value="${escapeHtml(track.duration || '')}">
           <input type="number" step="0.01" name="jury1" placeholder="Жюри 1" value="${track.jury1 !== '' ? track.jury1 : ''}">
           <input type="number" step="0.01" name="jury2" placeholder="Жюри 2" value="${track.jury2 !== '' ? track.jury2 : ''}">
@@ -1488,6 +1567,8 @@
         `;
 
         const songInput = row.querySelector('input[name="song_name"]');
+        const featInput = row.querySelector('input[name="feat"]');
+        const featDropdown = row.querySelector('.feat-dropdown');
         const durInput = row.querySelector('input[name="duration"]');
         const tJ1Input = row.querySelector('input[name="jury1"]');
         const tJ2Input = row.querySelector('input[name="jury2"]');
@@ -1495,6 +1576,7 @@
         const delBtn = row.querySelector('.btn-del-track');
 
         songInput.addEventListener("input", (e) => { track.song_name = e.target.value; });
+        attachFeatAutocomplete(featInput, featDropdown, track);
         durInput.addEventListener("input", (e) => { track.duration = e.target.value; });
 
         const updateTrackBadge = () => {
@@ -1507,9 +1589,13 @@
           const vs = parseFloat(track.scale) || 10;
           const badge = document.getElementById(`badgeTrack_${index}`);
           if (!isNaN(v1) && !isNaN(v2)) {
-            const a = (v1 + v2) / 2;
-            const a1000 = vs > 0 ? (a / vs) * 1000 : a;
-            badge.textContent = `${a.toFixed(1)} / ${a1000.toFixed(0)}`;
+            if (v1 === 0 && v2 === 0) {
+              badge.textContent = "Скип (0)";
+            } else {
+              const a = (v1 + v2) / 2;
+              const a1000 = vs > 0 ? (a / vs) * 1000 : a;
+              badge.textContent = `${a.toFixed(1)} / ${a1000.toFixed(0)}`;
+            }
           } else {
             badge.textContent = "—";
           }
@@ -1523,6 +1609,7 @@
           state.tracks.splice(index, 1);
           trackCount.value = state.tracks.length;
           renderTracksList();
+          renderDynamicArtistPhotoFields();
         });
 
         tracksListContainer.appendChild(row);
@@ -1534,6 +1621,7 @@
       state.tracks.push({
         track_number: nextNum,
         song_name: "",
+        feat: "",
         duration: "",
         jury1: jury1Input.value || "",
         jury2: jury2Input.value || "",
@@ -1542,6 +1630,7 @@
       trackCount.value = state.tracks.length;
       renderTracksList();
     });
+
 
     btnCopyScores.addEventListener("click", () => {
       const j1 = jury1Input.value;
@@ -1561,6 +1650,7 @@
       state.tracks.forEach(t => {
         const v1 = parseFloat(t.jury1);
         const v2 = parseFloat(t.jury2);
+        if (v1 === 0 && v2 === 0) return;
         if (!isNaN(v1) && !isNaN(v2)) {
           sumJ1 += v1;
           sumJ2 += v2;
@@ -1683,17 +1773,25 @@
         relise_url_spotify: spotifyUrl.value.trim()
       };
 
-      const tracksPayload = state.tracks.map((t, idx) => ({
-        artist: artist,
-        release: release,
-        track_number: idx + 1,
-        song_name: t.song_name.trim() || `Трек ${idx + 1}`,
-        duration: t.duration.trim(),
-        jury1: parseFloat(t.jury1) || j1,
-        jury2: parseFloat(t.jury2) || j2,
-        scale: parseFloat(t.scale) || scale,
-        system: systemInput.value.trim()
-      }));
+      const tracksPayload = state.tracks.map((t, idx) => {
+        const parsedJ1 = parseFloat(t.jury1);
+        const parsedJ2 = parseFloat(t.jury2);
+        const parsedSc = parseFloat(t.scale);
+
+        return {
+          artist: artist,
+          release: release,
+          track_number: idx + 1,
+          song_name: (t.song_name || "").trim() || `Трек ${idx + 1}`,
+          feat: (t.feat || "").trim(),
+          duration: (t.duration || "").trim(),
+          jury1: !isNaN(parsedJ1) ? parsedJ1 : j1,
+          jury2: !isNaN(parsedJ2) ? parsedJ2 : j2,
+          scale: !isNaN(parsedSc) && parsedSc > 0 ? parsedSc : scale,
+          system: systemInput.value.trim()
+        };
+      });
+
 
       const bodyData = {
         admin_key: state.adminKey,
