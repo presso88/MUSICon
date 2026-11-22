@@ -1564,8 +1564,8 @@ function attachFeatAutocomplete(inputEl, dropdownEl, trackObj) {
             <div class="autocomplete-dropdown feat-dropdown"></div>
           </div>
           <input type="text" name="duration" placeholder="03:45" value="${escapeHtml(track.duration || '')}">
-          <input type="number" step="0.01" name="jury1" placeholder="Оценка 1" value="${track.jury1 !== '' ? track.jury1 : ''}">
-          <input type="number" step="0.01" name="jury2" placeholder="Оценка 2" value="${track.jury2 !== '' ? track.jury2 : ''}">
+          <input type="number" step="0.01" name="jury1" placeholder="Оц. 1" value="${track.jury1 !== '' ? track.jury1 : ''}">
+          <input type="number" step="0.01" name="jury2" placeholder="Оц. 2" value="${track.jury2 !== '' ? track.jury2 : ''}">
           <input type="number" name="scale" placeholder="Шкала" value="${track.scale || scaleInput.value || 100}">
           <div class="track-score-badge" id="badgeTrack_${index}">${badgeHtml}</div>
           <button type="button" class="btn-del-track" title="Удалить трек">
