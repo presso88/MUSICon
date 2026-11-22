@@ -1496,6 +1496,56 @@
       return "—";
     }
 
+function attachFeatAutocomplete(inputEl, dropdownEl, trackObj) {
+  const showFeatDropdown = () => {
+    const fullVal = inputEl.value;
+    const parts = fullVal.split(";");
+    const currentSegment = (parts[parts.length - 1] || "").trim();
+    const cleanVal = currentSegment.toLowerCase();
+
+    dropdownEl.innerHTML = "";
+    const names = Object.keys(state.existingArtists);
+    const matches = names.filter(n => !cleanVal || n.toLowerCase().includes(cleanVal));
+
+    if (matches.length === 0) {
+      dropdownEl.classList.remove("show");
+      return;
+    }
+
+    matches.slice(0, 10).forEach(name => {
+      const item = document.createElement("div");
+      item.className = "autocomplete-item";
+      item.textContent = name;
+      item.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        if (parts.length > 1) {
+          parts[parts.length - 1] = " " + name;
+          inputEl.value = parts.join(";");
+        } else {
+          inputEl.value = name;
+        }
+        trackObj.feat = inputEl.value;
+        dropdownEl.classList.remove("show");
+        renderDynamicArtistPhotoFields();
+      });
+      dropdownEl.appendChild(item);
+    });
+
+    dropdownEl.classList.add("show");
+  };
+
+  inputEl.addEventListener("input", () => {
+    trackObj.feat = inputEl.value;
+    showFeatDropdown();
+    renderDynamicArtistPhotoFields();
+  });
+  inputEl.addEventListener("focus", showFeatDropdown);
+  inputEl.addEventListener("blur", () => {
+    setTimeout(() => dropdownEl.classList.remove("show"), 150);
+  });
+}
+
+    
     function renderTracksList() {
       tracksListContainer.innerHTML = "";
       tracksTotalCount.textContent = state.tracks.length;
