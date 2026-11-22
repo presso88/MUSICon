@@ -733,7 +733,7 @@
           <h1>
             onFORM
             <span class="brand-badge">ADMIN</span>
-            <span class="brand-version">v0.3.0</span>
+            <span class="brand-version">v0.3.1</span>
           </h1>
           <p>Добавление релизов и треков в базу данных MUSICon</p>
         </div>
@@ -817,7 +817,7 @@
             <label for="jury1Input">
               <span>Оценка жюри 1 <span class="req">*</span></span>
             </label>
-            <input type="number" step="0.01" id="jury1Input" placeholder="8.5" required>
+            <input type="number" step="0.01" id="jury1Input" placeholder="85" required>
           </div>
 
           <!-- Оценка жюри 2 -->
@@ -825,7 +825,7 @@
             <label for="jury2Input">
               <span>Оценка жюри 2 <span class="req">*</span></span>
             </label>
-            <input type="number" step="0.01" id="jury2Input" placeholder="9.0" required>
+            <input type="number" step="0.01" id="jury2Input" placeholder="90" required>
           </div>
 
           <!-- Максимальная шкала -->
@@ -833,7 +833,7 @@
             <label for="scaleInput">
               <span>Максимальная шкала <span class="req">*</span></span>
             </label>
-            <input type="number" id="scaleInput" value="10" min="1" required>
+            <input type="number" id="scaleInput" value="100" min="1" required>
           </div>
 
           <!-- Даты -->
@@ -1467,7 +1467,7 @@
             duration: "",
             jury1: "",
             jury2: "",
-            scale: scaleInput.value || 10
+            scale: scaleInput.value || 100
           });
         }
       } else if (targetCount < currentCount) {
@@ -1478,53 +1478,22 @@
       renderDynamicArtistPhotoFields();
     }
 
-    function attachFeatAutocomplete(inputEl, dropdownEl, trackObj) {
-      const showFeatDropdown = () => {
-        const fullVal = inputEl.value;
-        const parts = fullVal.split(";");
-        const currentSegment = (parts[parts.length - 1] || "").trim();
-        const cleanVal = currentSegment.toLowerCase();
+    function getTrackBadgeText(j1Raw, j2Raw, scRaw) {
+      const isEmpty1 = String(j1Raw ?? "").trim() === "";
+      const isEmpty2 = String(j2Raw ?? "").trim() === "";
+      if (isEmpty1 && isEmpty2) return "Скип";
 
-        dropdownEl.innerHTML = "";
-        const names = Object.keys(state.existingArtists);
-        const matches = names.filter(n => !cleanVal || n.toLowerCase().includes(cleanVal));
+      const v1 = parseFloat(j1Raw);
+      const v2 = parseFloat(j2Raw);
+      const vs = parseFloat(scRaw) || 100;
 
-        if (matches.length === 0) {
-          dropdownEl.classList.remove("show");
-          return;
-        }
-
-        matches.slice(0, 10).forEach(name => {
-          const item = document.createElement("div");
-          item.className = "autocomplete-item";
-          item.textContent = name;
-          item.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            if (parts.length > 1) {
-              parts[parts.length - 1] = " " + name;
-              inputEl.value = parts.join(";");
-            } else {
-              inputEl.value = name;
-            }
-            trackObj.feat = inputEl.value;
-            dropdownEl.classList.remove("show");
-            renderDynamicArtistPhotoFields();
-          });
-          dropdownEl.appendChild(item);
-        });
-
-        dropdownEl.classList.add("show");
-      };
-
-      inputEl.addEventListener("input", () => {
-        trackObj.feat = inputEl.value;
-        showFeatDropdown();
-        renderDynamicArtistPhotoFields();
-      });
-      inputEl.addEventListener("focus", showFeatDropdown);
-      inputEl.addEventListener("blur", () => {
-        setTimeout(() => dropdownEl.classList.remove("show"), 150);
-      });
+      if (!isNaN(v1) && !isNaN(v2)) {
+        if (v1 === 0 && v2 === 0) return "Скип";
+        const a = (v1 + v2) / 2;
+        const a1000 = vs > 0 ? (a / vs) * 1000 : a;
+        return `${a.toFixed(1)} / ${a1000.toFixed(0)}`;
+      }
+      return "—";
     }
 
     function renderTracksList() {
@@ -1535,19 +1504,7 @@
         const row = document.createElement("div");
         row.className = "track-row";
 
-        const j1 = parseFloat(track.jury1);
-        const j2 = parseFloat(track.jury2);
-        const sc = parseFloat(track.scale) || 10;
-        let badgeHtml = "—";
-        if (!isNaN(j1) && !isNaN(j2)) {
-          if (j1 === 0 && j2 === 0) {
-            badgeHtml = "Скип (0)";
-          } else {
-            const avg = (j1 + j2) / 2;
-            const avg1000 = sc > 0 ? (avg / sc) * 1000 : avg;
-            badgeHtml = `${avg.toFixed(1)} / ${avg1000.toFixed(0)}`;
-          }
-        }
+        const badgeHtml = getTrackBadgeText(track.jury1, track.jury2, track.scale);
 
         row.innerHTML = `
           <div class="track-num">#${index + 1}</div>
@@ -1557,9 +1514,9 @@
             <div class="autocomplete-dropdown feat-dropdown"></div>
           </div>
           <input type="text" name="duration" placeholder="03:45" value="${escapeHtml(track.duration || '')}">
-          <input type="number" step="0.01" name="jury1" placeholder="Жюри 1" value="${track.jury1 !== '' ? track.jury1 : ''}">
-          <input type="number" step="0.01" name="jury2" placeholder="Жюри 2" value="${track.jury2 !== '' ? track.jury2 : ''}">
-          <input type="number" name="scale" placeholder="Шкала" value="${track.scale || scaleInput.value || 10}">
+          <input type="number" step="0.01" name="jury1" placeholder="Скип" value="${track.jury1 !== '' ? track.jury1 : ''}">
+          <input type="number" step="0.01" name="jury2" placeholder="Скип" value="${track.jury2 !== '' ? track.jury2 : ''}">
+          <input type="number" name="scale" placeholder="Шкала" value="${track.scale || scaleInput.value || 100}">
           <div class="track-score-badge" id="badgeTrack_${index}">${badgeHtml}</div>
           <button type="button" class="btn-del-track" title="Удалить трек">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1584,21 +1541,8 @@
           track.jury2 = tJ2Input.value;
           track.scale = tScInput.value;
 
-          const v1 = parseFloat(track.jury1);
-          const v2 = parseFloat(track.jury2);
-          const vs = parseFloat(track.scale) || 10;
           const badge = document.getElementById(`badgeTrack_${index}`);
-          if (!isNaN(v1) && !isNaN(v2)) {
-            if (v1 === 0 && v2 === 0) {
-              badge.textContent = "Скип (0)";
-            } else {
-              const a = (v1 + v2) / 2;
-              const a1000 = vs > 0 ? (a / vs) * 1000 : a;
-              badge.textContent = `${a.toFixed(1)} / ${a1000.toFixed(0)}`;
-            }
-          } else {
-            badge.textContent = "—";
-          }
+          badge.textContent = getTrackBadgeText(track.jury1, track.jury2, track.scale);
         };
 
         tJ1Input.addEventListener("input", updateTrackBadge);
@@ -1623,35 +1567,25 @@
         song_name: "",
         feat: "",
         duration: "",
-        jury1: jury1Input.value || "",
-        jury2: jury2Input.value || "",
-        scale: scaleInput.value || 10
+        jury1: "",
+        jury2: "",
+        scale: scaleInput.value || 100
       });
       trackCount.value = state.tracks.length;
-      renderTracksList();
-    });
-
-
-    btnCopyScores.addEventListener("click", () => {
-      const j1 = jury1Input.value;
-      const j2 = jury2Input.value;
-      const sc = scaleInput.value;
-
-      state.tracks.forEach(t => {
-        t.jury1 = j1;
-        t.jury2 = j2;
-        t.scale = sc;
-      });
       renderTracksList();
     });
 
     btnCalcFromTracks.addEventListener("click", () => {
       let sumJ1 = 0, sumJ2 = 0, count = 0;
       state.tracks.forEach(t => {
+        const isEmpty1 = String(t.jury1 ?? "").trim() === "";
+        const isEmpty2 = String(t.jury2 ?? "").trim() === "";
+        if (isEmpty1 && isEmpty2) return; // Пропускаем скипы
+
         const v1 = parseFloat(t.jury1);
         const v2 = parseFloat(t.jury2);
-        if (v1 === 0 && v2 === 0) return;
         if (!isNaN(v1) && !isNaN(v2)) {
+          if (v1 === 0 && v2 === 0) return; // Пропускаем явные нули (скипы)
           sumJ1 += v1;
           sumJ2 += v2;
           count++;
@@ -1663,14 +1597,15 @@
         jury2Input.value = (sumJ2 / count).toFixed(2);
         recalcScores();
       } else {
-        alert("Заполните оценки хотя бы для одного трека!");
+        alert("Заполните оценки хотя бы для одного непропущенного трека!");
       }
     });
+
 
     // =========================================================================
     // Сброс всех полей формы к дефолтным значениям (Reset)
     // =========================================================================
-    function resetFormFields(tracksCountToReset = 1) {
+    function resetFormFields(tracksCountToReset = 10) {
       artistInput.value = "";
       releaseTitle.value = "";
       releaseType.value = "альбом";
@@ -1678,7 +1613,7 @@
       systemInput.value = "";
       jury1Input.value = "";
       jury2Input.value = "";
-      scaleInput.value = "10";
+      scaleInput.value = "100";
       evalDate.value = new Date().toISOString().split("T")[0];
       releaseDate.value = "";
       coverUrl.value = "";
@@ -1688,18 +1623,17 @@
       spotifyUrl.value = "";
       descInput.value = "";
 
-      // Очищаем динамические поля фото артистов
       artistImagesContainer.innerHTML = "";
       artistImagesContainer.style.display = "none";
 
-      // Сбрасываем треки в количестве tracksCountToReset (дефолт 1)
       state.tracks = Array.from({ length: tracksCountToReset }, (_, i) => ({
         track_number: i + 1,
         song_name: "",
+        feat: "",
         duration: "",
         jury1: "",
         jury2: "",
-        scale: "10"
+        scale: "100"
       }));
 
       renderTracksList();
@@ -1708,9 +1642,10 @@
 
     // Кнопка "Сбросить форму"
     btnResetForm.addEventListener("click", () => {
-      resetFormFields(1);
+      resetFormFields(10);
       showToast("neutral", "Форма очищена", 2000);
     });
+
 
     // =========================================================================
     // Отправка формы (POST-запрос)
@@ -1774,8 +1709,12 @@
       };
 
       const tracksPayload = state.tracks.map((t, idx) => {
-        const parsedJ1 = parseFloat(t.jury1);
-        const parsedJ2 = parseFloat(t.jury2);
+        const isEmpty1 = String(t.jury1 ?? "").trim() === "";
+        const isEmpty2 = String(t.jury2 ?? "").trim() === "";
+        const isSkip = isEmpty1 && isEmpty2;
+
+        const parsedJ1 = isSkip ? 0 : parseFloat(t.jury1);
+        const parsedJ2 = isSkip ? 0 : parseFloat(t.jury2);
         const parsedSc = parseFloat(t.scale);
 
         return {
@@ -1785,12 +1724,13 @@
           song_name: (t.song_name || "").trim() || `Трек ${idx + 1}`,
           feat: (t.feat || "").trim(),
           duration: (t.duration || "").trim(),
-          jury1: !isNaN(parsedJ1) ? parsedJ1 : j1,
-          jury2: !isNaN(parsedJ2) ? parsedJ2 : j2,
+          jury1: !isNaN(parsedJ1) ? parsedJ1 : 0,
+          jury2: !isNaN(parsedJ2) ? parsedJ2 : 0,
           scale: !isNaN(parsedSc) && parsedSc > 0 ? parsedSc : scale,
           system: systemInput.value.trim()
         };
       });
+
 
 
       const bodyData = {
@@ -1816,7 +1756,7 @@
         if (result && result.ok) {
           showToast("success", `Успешно добавлено: "${artist} — ${release}" (${tracksPayload.length} треков)!`, 4000);
           // Полная очистка всех полей к дефолтным значениям (1 трек)
-          resetFormFields(1);
+          resetFormFields(10);
           fetchArtists();
         } else {
           if (result && result.error === "duplicate") {
